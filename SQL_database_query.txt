@@ -1,0 +1,39 @@
+CREATE USER [{func_app_name}] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [{func_app_name}];
+ALTER ROLE db_datawriter ADD MEMBER [{func_app_name}];
+GO
+
+DROP TABLE IF EXISTS air_measurements;
+CREATE TABLE air_measurements
+(
+    idx BIGINT IDENTITY(1,1) PRIMARY KEY,
+    ingested_time DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    time_stamp DATETIME2,
+    location_id INT,
+    location_name NVARCHAR(255),
+    location_type NVARCHAR(100),
+    pm01 FLOAT,
+    pm02 FLOAT,
+    pm10 FLOAT,
+    pm01_corrected FLOAT,
+    pm02_corrected FLOAT,
+    pm10_corrected FLOAT,
+    pm003_count INT,
+    atmp FLOAT,
+    rhum FLOAT,
+    rco2 FLOAT,
+    atmp_corrected FLOAT,
+    rhum_corrected FLOAT,
+    rco2_corrected FLOAT,
+    wifi INT,
+    serial_no NVARCHAR(100),
+    model NVARCHAR(100),
+    firmware_version NVARCHAR(100),
+    tvoc FLOAT,
+    tvoc_index INT,
+    nox_index INT
+)
+
+CREATE NONCLUSTERED INDEX idx_time_stamp
+    ON air_measurements (time_stamp DESC);
+
