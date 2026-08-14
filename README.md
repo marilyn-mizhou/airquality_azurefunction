@@ -6,7 +6,7 @@ The air quality monitor is from AirGradient, and it is fully open-source (https:
 
 As one of the "go-off-the-grid" initiatives in our household, the ultimate goal is to bypass the default AirGradeint cloud, store the collected data in a local database and build a custom real-time dashboard. However, since I was already learning Azure and Power BI, using the air quality data seemed like a perfect practice. Instead of establishing the entire pipeline on a Raspberry Pi, the objective of this intermediate project is to pull data directly from AirGradeint cloud, store in an Azure SQL database and build a dashboard in Power BI. This approach gives me an opportunity to test the workflow and better understand my preferences before fighting real estate for the bridging device in our already tight apartment.
 
-Here is an overview of the data pipeline.
+## Data Pipeline Overview
 ```mermaid
 ---
 config:
@@ -30,8 +30,20 @@ flowchart LR
 
     e1@{animate: true, animation: slow}
 ```
+The whole project can be split into several major steps:
+- **Github**: to create a new repository (the one that you are looking at right now!)
+- **Azure Portal**: to initiate relevant Azure services and adjust settings
+- **AirGradient Dashboard**: to enable API access
+- **VS Code**: to build, test and deploy Azure Function App
+- **Power BI**: to build the custom dashboard
 
-## Create SQL Server and Database in Azure Portal
+## Github
+Creating a github repository. This repository will also be used to implement CI/CD via Github Action in a later step.
+![alt text](images/github_setup_1.png)
+
+
+## Azure Portal
+### Create SQL Server and Database
 1. There are multiple ways to start the process. If "Azure SQL Database" is not in the quick access side bar, search in the search box on the top of the portal and then click "Create".
 2. Create or select a Resource Group. A resource group is a container that holds all related resources for one solution (i.e. all Azure services that I will be using to build the dashboard). In this case, I am creating a new group named "AirQuality" and it will be selected throughout the entire project. Enter a name for the database and since I don't have a server yet, I need to create one in the next step.
 ![alt text](images/sql_setup_1.png)
@@ -43,16 +55,7 @@ flowchart LR
 ![alt text](images/sql_setup_4.png)
 6. A SQL server and a SQL database will be ready to use shortly.
 
-
-
-## Create Github Repository
-I am going to create a github repository to store all function app files.
-![alt text](images/github_setup_1.png)
-
-
-
-
-## Initiate Function App in Azure Portal
+### Initiate Function App
 1. Similar to SQL database, search "function" in the portal and click "Create".
 2. Previously, the default plan is Consumption. However, the Consumption plan no longer supports Python, which is the language that I intended to use. Flex Consumption hosting plan is sufficient for my project. In additon to the main features in the Consumption plan with different service limits, the Flex Consumption plan also supports always ready instances. These instances are intended to reduce the delay during a cold start, but they show up as extra charges in the bill even when the function is paused. For more information about the hosting options, see https://learn.microsoft.com/en-us/azure/azure-functions/functions-scale.
 ![alt text](images/function_setup_1.png)
@@ -77,23 +80,13 @@ Setup Github Action in the Deployment section. It will create a .github/workflow
 ![alt text](images/function_setup_10.png)
 12. 
 ![alt text](images/function_setup_11.png)
-13. 
+13. A function app, a storage account and an app service plan are created in this step
 
-
-A function app, a storage account and an app service plan are created in this step
-
-## Adjust Settings in Azure Portal
-
-SQL server:
-- Add new firewall rules
+### Add new firewall rules to SQL server
 ![alt text](images/sqlserver_security_networking.png)
 ![alt text](images/sqlserver_security_networking_firewall.png)
 
-
-
-SQL database:
-
-Create a table in the database:
+### Create a table in SQL database
 ```sql
 DROP TABLE IF EXISTS air_measurements;
 CREATE TABLE air_measurements
@@ -127,15 +120,12 @@ CREATE TABLE air_measurements
 )
 ```
 
-
-Allow function app to access the database:
+### Allow function app to access the database
 ```sql
 CREATE USER [airquality-function] FROM EXTERNAL PROVIDER;
 ALTER ROLE db_datareader ADD MEMBER [airquality-function];
 ALTER ROLE db_datawriter ADD MEMBER [airquality-function];
 ```
-
-
 
 While still in the database page, save the following information in a seperate local text file and set it aside:
 - **SQL database connection string**: Azure Portal &rarr; SQL database &rarr; Settings &rarr; Connection strings &rarr; ODBC &rarr; Save "ODBC (SQL authentication)" (replace `{your_password_here}` with the SQL authentication password assigned during initial setup)
@@ -151,17 +141,10 @@ While still in the dashboard, save the following information in a seperate local
 - **Location ID**: AirGradient Dashboard &rarr; Locations &rarr; Save "Location ID"
 - **URL**: Save "`https://api.airgradient.com/public/api/v1/locations/{location_id}/measures/current`" (replace `{location_id}` with the acutal Location ID from the previous step)
 
-
-## Prerequisite installation
-install extensions in vs code:
-Python (match function app version)
-Github Actions
-Azure Functions
-Azurite (for local testing)
-
+## ODBC driver installation
 install ODBC driver (https://learn.microsoft.com/en-us/sql/connect/odbc/microsoft-odbc-driver-for-sql-server?view=sql-server-ver17)
 
-## Build Function App in VS Code
+## Clone github repository
 clone repository to local directory
 ```bash
 cd ~/Work
@@ -169,21 +152,71 @@ git clone https://github.com/marilyn-mizhou/airquality_azurefunction.git
 ```
 Enter user name and personal access tokens when prompted.
 
-Open 
+## VS Code
+### Extension installation
+- Python (match function app version)
+- Github Actions
+- Azure Functions
+- Azurite (for local testing)
 
+### Create Function App
+1. Open the directory in VS code workspace.
 
+2. Press `Cmd/Ctrl` + `Shift` + `P` to open the Commond Palette.
 
-create timer function app in local directory
-automatically generate necessary function files
+3. Search and select "Azure Functions: Create Function".
+![alt text](images/vs_code_1.png)
 
-edit:
-local.settings.json
-function_app.py
-requirements.txt
-.funcignore
-.gitignore
+4. Select the directory (e.g. the current directory) to save all function files.
+![alt text](images/vs_code_2.png)
 
+5. Select a language to build the function. I'm using `Python` for this project.
+![alt text](images/vs_code_3.png)
 
+6. Choose the Python version that matches with the version that initiated in Azure portal.
+![alt text](images/vs_code_4.png)
+
+7. Select a template. For this project, the plan is to pull data from AirGradient cloud API every minute, so `Timer Trigger` is selected.
+![alt text](images/vs_code_5.png)
+
+8. Enter a name for the function. I'm leaving the default name `timer_trigger` as is.
+![alt text](images/vs_code_6.png)
+
+9. Enter a cron expression to initiate the schedule. To trigger the event every minute, use `0 * * * * *`.
+![alt text](images/vs_code_7.png)
+
+10. All necessary files of the function should appear in the selected directory. 
+
+### `local.settings.json` file
+Open `local.settings.json` file and add the following variables. These variables are saved locally for now but can be uploaded to Azure once the function is deployed.
+    - `ag_api_token`: AirGradient API token
+    - `ag_location_id`: AirGradient location ID
+    - `sql_connection_string`: Azure SQL database connection string
+
+Since the function app will be tested locally first, set `"AzureWebJobsStorage": "UseDevelopmentStorage=true"`.
+
+### `function_app.py` file
+1. Open `function_app.py`. A template should already be given in the file. To change the timer schedule, if needed, simply change the value of the `schedule` attribute.
+```python
+import datetime
+import logging
+import azure.functions as func
+
+app = func.FunctionApp()
+
+@app.timer_trigger(schedule="0 * * * * *", 
+                   arg_name="myTimer", 
+                   run_on_startup=False, 
+                   use_monitor=False)
+
+def timer_trigger(myTimer: func.TimerRequest) -> None:
+    if myTimer.past_due:
+        logging.info('The timer is past due!')
+
+    logging.info(f"Python timer trigger function executed.")
+```
+
+2. Add other necessary libararies
 ```python
 import logging
 import azure.functions as func
@@ -194,26 +227,15 @@ from zoneinfo import ZoneInfo
 import requests
 ```
 
-```python
-app = func.FunctionApp()
-
-@app.timer_trigger(schedule="0 * * * * *", 
-                   arg_name="myTimer", 
-                   run_on_startup=False, 
-                   use_monitor=False)
-```
-
-
-
+3. Import the variables in `local.settings.json` file.
 ```python
 token = os.environ["ag_api_token"]
 location_id = os.environ["ag_location_id"]
 conn_str = os.environ["sql_connection_string"]
 ```
 
-
+4. Fetch from AirGradient Cloud API.
 ```python
-# --- 1. Fetch from AirGradient Cloud API ---
 url = f"https://api.airgradient.com/public/api/v1/locations/{location_id}/measures/current"
 
 try:
@@ -226,9 +248,8 @@ data = response.json()
 logging.info(f"Received: {data}")
 ```
 
-
+5. Parse fields. This step is optional but highly recommendated to transform the data into desirable format for further ingestion.
 ```python
-# --- 2. Parse fields ---
 time_stamp = datetime.fromisoformat(data.get("timestamp")).astimezone(ZoneInfo("Canada/Pacific"))
 ingested_time = datetime.now(timezone.utc).astimezone(ZoneInfo("Canada/Pacific"))
 row = {
@@ -261,9 +282,8 @@ row = {
 logging.info(f"Converted: {row}")
 ```
 
-
+6. Insert data into Azure SQL
 ```python
-# --- 3. Insert into Azure SQL ---
 try:
     with pyodbc.connect(conn_str) as conn:
         cursor = conn.cursor()
@@ -308,7 +328,23 @@ except pyodbc.Error as e:
     logging.error(f"SQL insert failed: {e}")
 ```
 
+7. Combining all code sections together, the `function_app.py` file should look like this.
 ```python
+import logging
+import azure.functions as func
+import pyodbc
+import os
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+import requests
+
+app = func.FunctionApp()
+
+@app.timer_trigger(schedule="0 * * * * *", 
+                   arg_name="myTimer", 
+                   run_on_startup=False,
+                   use_monitor=False) 
+
 def timer_trigger_1min_pull_from_ag(myTimer: func.TimerRequest) -> None:
     if myTimer.past_due:
         logging.info('The timer is past due!')
@@ -408,6 +444,38 @@ def timer_trigger_1min_pull_from_ag(myTimer: func.TimerRequest) -> None:
     except pyodbc.Error as e:
         logging.error(f"SQL insert failed: {e}")
 ```
+
+### `requirement.txt` file
+The `requirement.txt` file should already include azure-`functions`. Add `pyodbc` and `requests` to the list.
+```python
+# Uncomment to enable Azure Monitor OpenTelemetry
+# Ref: aka.ms/functions-azure-monitor-python
+# azure-monitor-opentelemetry
+
+azure-functions
+pyodbc
+requests
+```
+
+### `.funcignore` and `.gitignore` files
+Add files that don't need to part of the function app and/or the version control process in `.funcignore` and `.gitignore` files. 
+
+### Local testing
+Press `F5` or go to "Run" &rarr; "Start Debugging" to start local testing.
+
+Open Azure Portal and check if the data is loaded into database every minute.
+
+
+
+### Deploy to Azure
+deploy the function
+upload local settings
+
+
+## Check in Azure Portal
+- Database data intake
+- Time stamp in each row to ensure no duplicates or missing values
+- 
 
 
 

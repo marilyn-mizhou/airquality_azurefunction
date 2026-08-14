@@ -1,0 +1,13 @@
+.git*
+.vscode
+__azurite_db*__.json
+__blobstorage__
+__queuestorage__
+local.settings.json
+test
+.venv
+SQL_database_query.txt
+.DS_Store
+images
+README.md
+*.code-workspace
